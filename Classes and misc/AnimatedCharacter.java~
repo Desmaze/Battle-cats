@@ -1,0 +1,262 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+public class AnimatedCharacter{
+    JFrame gameWindow;
+    GamePanel gamePanel;   
+    MyKeyListener keyListener; 
+    
+    //game objects
+    //Label the menu levels
+    
+    //Store the menu with an arraylist so I can delete the object when not used
+    BattleCatsMenu menu=new BattleCatsMenu();
+    Money cash=new Money();
+    Tower catTower= new Tower();
+    Tower enemyTower= new Tower();
+    static boolean inMenu=true;
+    int money, stage;
+  //  int catHealth=500;
+    int counter=0;
+    ArrayList<Background> back= new ArrayList<Background>();
+    ArrayList<Enemy> enemies= new ArrayList<Enemy>();
+    ArrayList<CatIcons> catIcons= new ArrayList<CatIcons>();
+    static ArrayList<Cats> spawnedCats= new ArrayList<Cats>();
+    BufferedImage death;
+    static long startTime,elapsedTime, unitsAttackTime, newElapsedTime, previousEnemyElapsedTime;
+//------------------------------------------------------------------------------
+    //instantiate game objects
+    AnimatedCharacter(){
+        gameWindow = new JFrame("Game Window");
+        gameWindow.setSize(Const.WIDTH,Const.HEIGHT);
+        gameWindow.setResizable(false);        
+        gameWindow.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        //Use a queue for enemies
+        gamePanel = new GamePanel();
+        gameWindow.add(gamePanel);
+        
+        
+        gamePanel.addMouseListener(new MyMouseListener());
+        
+        keyListener = new MyKeyListener();
+        gamePanel.addKeyListener(keyListener);
+        
+        
+        
+        try{
+            death=ImageIO.read(new File("death.png"));
+        }catch (IOException ex){}
+           
+        gameWindow.setVisible(true);    
+    }
+//------------------------------------------------------------------------------  
+    //main game loop
+    public void run(){
+        while (true) {
+            gameWindow.repaint();
+            if(!inMenu){
+                if(catIcons.size()<Const.TOTAL_ICONS){
+                    for(int i=0; i<Const.TOTAL_ICONS; i++){
+                    catIcons.add(new CatIcons(i));  
+                    }
+                }
+                if(back.size()<Const.TOTAL_BACKGROUNDS){
+                    for(int i=0; i<Const.TOTAL_BACKGROUNDS; i++){
+                    back.add(new Background(i));  
+                    }
+                }
+                unitsAttackTime=(System.currentTimeMillis()-startTime)/100;
+                 newElapsedTime=unitsAttackTime/10;
+              if(elapsedTime!=newElapsedTime){    
+                   if(money<Const.MAX_MONEY){
+                        money=cash.addMoney();
+                    }
+                    elapsedTime=newElapsedTime;
+                    //Use queue to spawn enemies
+                    if(elapsedTime%Const.SPAWNING_DELAY==0 && counter<=3 && !inMenu){
+                        enemies.add(new Enemy(1,500));
+                        counter++;    
+                    }
+              }
+           }
+            try  {Thread.sleep(Const.FRAME_PERIOD);} catch(Exception e){}
+        }
+        
+    }  
+//------------------------------------------------------------------------------  
+    //act upon key events
+    public class MyKeyListener implements KeyListener{   
+        public void keyPressed(KeyEvent e){
+            int key= e.getKeyCode();
+            if(inMenu){
+                if (key == KeyEvent.VK_LEFT){
+                    menu.moveLeft();
+                    if(stage>0){
+                    stage--;
+                    }
+                } else if (key == KeyEvent.VK_RIGHT){
+                    menu.moveRight();
+                    if(stage<6){
+                    stage++;
+                    }
+                } else if (key == KeyEvent.VK_ENTER){
+                    //Check which level its on and output the correct enemy base and health 
+                    inMenu=false;
+                    startTime=System.currentTimeMillis();
+                    long enemyAttackTime=System.currentTimeMillis();
+                     enemies.clear();
+                     spawnedCats.clear();
+                    //IMPLEMENT MOVING  BACKGROUND IF HAVE TIME
+                }
+            }if (key == KeyEvent.VK_ESCAPE){
+                inMenu=true;
+                enemies.clear();
+                spawnedCats.clear();
+                counter=0;
+                cash.setMoney(0);
+            }
+        }
+        public void keyReleased(KeyEvent e){ 
+        }   
+        public void keyTyped(KeyEvent e){
+        }    
+    }
+  //------------------------------------------------------------------------------
+     static class MyMouseListener implements MouseListener{
+        public void mouseClicked(MouseEvent e){
+        }  
+        
+        public void mousePressed(MouseEvent e){
+            if(!inMenu && spawnedCats.size()<10)
+           spawnedCats.add(new Cats(1, 500));
+        }
+        public void mouseReleased(MouseEvent e){
+        }
+        public void mouseEntered(MouseEvent e){
+        }
+        public void mouseExited(MouseEvent e){
+        }
+        
+    } // MyMouseListener class end
+    
+//------------------------------------------------------------------------------
+    public class GamePanel extends JPanel{
+        GamePanel(){
+            setFocusable(true);
+            requestFocusInWindow();
+        }
+        
+        @Override
+        public void paintComponent(Graphics g){ 
+            super.paintComponent(g); //required
+            g.setFont(new Font("Ink Free",Font.BOLD,42));
+            //While in menu
+            if(inMenu){
+                menu.draw(g);
+            } else{
+                back.get(stage).draw(g);
+                for(int icons=0; icons<Const.TOTAL_ICONS; icons++){
+                    
+                    catIcons.get(icons).draw(g);
+                }
+                g.drawString("$"+money,Const.MONEY_X,Const.MONEY_Y);                    
+                //Fix
+                //Add money if killed enemy
+                //Add animation if hurt
+                //If health isnt 0 
+                //Cooldown to spawning spawnedCats
+                //Attack queue so that the attacks only hit one enemy or one cat
+                //O fortuna
+                //If enemy dies remove it from the list
+                boolean isDifferentTime=false;
+                if(unitsAttackTime!=previousEnemyElapsedTime){
+                    isDifferentTime=true;
+                }else{
+                    isDifferentTime=false;
+                }
+                 for(int row=0; row<spawnedCats.size(); row++){
+                     spawnedCats.get(row).draw(g);
+                     if(spawnedCats.get(row).isAlive()){
+                         if(spawnedCats.get(row).checkAttack()){
+                             if(unitsAttackTime%2==0 && isDifferentTime){
+                                 spawnedCats.get(row).attack();  
+                             }
+                         }else{
+                             spawnedCats.get(row).moveLeft();
+                         }
+                         if(!enemies.isEmpty()){
+                             if(spawnedCats.get(row).hitEnemy(enemies.get(0).getPosition())){
+                                 if(spawnedCats.get(row).getRow()==6 && isDifferentTime){
+                                 enemies.get(0).getHit(spawnedCats.get(row).getAttack());
+                                 }
+                                 spawnedCats.get(row).shouldAttack(true);
+                             }
+                         }else{                           
+                             spawnedCats.get(row).shouldAttack(false);
+                         }
+                         if(spawnedCats.get(row).getPosition()-65<Const.ENEMY_TOWER_POSITION){
+                             enemyTower.hitTower(spawnedCats.get(row).getAttack());
+                             spawnedCats.get(row).shouldAttack(true);
+                         } 
+                     }else{
+                         spawnedCats.remove(0);
+                         for(int i=0; i<spawnedCats.size(); i++){
+                             enemies.get(row).shouldAttack(false);
+                        }            
+                     }
+                        }
+                for(int row=0; row<enemies.size(); row++){
+                    enemies.get(row).draw(g);
+                    if(enemies.get(row).isAlive()){
+                        if(enemies.get(row).checkAttack()){
+                            if(unitsAttackTime%2==0 && isDifferentTime){
+                                enemies.get(row).attack();  
+                            }
+                        }else{
+                            enemies.get(row).moveRight();
+                        }
+                        if(!spawnedCats.isEmpty()){
+                            if(enemies.get(row).hitCat(spawnedCats.get(0).getPosition())){
+                                if(enemies.get(row).getRow()==6 && isDifferentTime){
+                                spawnedCats.get(0).getHit(enemies.get(row).getAttack());
+                                }
+                                enemies.get(row).shouldAttack(true);
+                            }
+                        }else{                           
+                            enemies.get(row).shouldAttack(false);
+                            
+                        }
+                        if(enemies.get(row).getPosition()+65>Const.CAT_TOWER_POSITION){
+                            catTower.hitTower(enemies.get(row).getAttack());
+                            enemies.get(row).shouldAttack(true);
+                        }
+                    }else{
+                        for(int floatUp =0; floatUp <20; floatUp++){
+                            g.drawImage(death,enemies.get(0).getPosition(), floatUp,null);
+                        }
+                        enemies.remove(0);
+                        for(int i=0; i<spawnedCats.size(); i++){
+                        spawnedCats.get(i).shouldAttack(false);
+                        }
+                        counter--;
+                    }
+                       }
+                previousEnemyElapsedTime=unitsAttackTime;
+            }
+            //Queue spawning system for  spawnedCats
+            
+            
+            
+        }    
+    }    
+//------------------------------------------------------------------------------
+    public static void main(String[] args){
+        AnimatedCharacter demo = new AnimatedCharacter();
+        demo.run();
+    }    
+}

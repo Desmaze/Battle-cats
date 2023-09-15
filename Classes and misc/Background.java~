@@ -1,0 +1,24 @@
+import java.awt.Graphics;
+import java.io.File;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.awt.Rectangle;
+// the following imports are needed for pictures
+import java.io.File;
+// possible exceptions
+import java.io.IOException;
+
+public class Background{
+    BufferedImage background;
+    Background(){
+    }
+    Background(int stage){
+    try{
+    background = ImageIO.read(new File("battlecatsback"+stage+".png")); // add different enemt towers 
+    }catch(IOException ex){}
+    }
+    public void draw(Graphics g){
+         g.drawImage(background, 0, -70, null);    
+    //    g.drawImage();        
+    }
+}
